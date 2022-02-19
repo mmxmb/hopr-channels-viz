@@ -10,7 +10,7 @@ cyto.load_extra_layouts()
 
 app = dash.Dash(__name__)
 
-style = {"width": "100%", "height": "90vh", "background-color": "#f8f8ff"}
+style = {"width": "100%", "height": "90vh"}
 
 stylesheet = [
     {
@@ -35,6 +35,9 @@ styles = {
         "border": "thin lightgrey solid",
         "background-color": "#fffea5",  # hopr yellow
         "overflowX": "scroll",
+    },
+    "container": {
+        "background-color": "#f8f8ff"
     }
 }
 
@@ -43,11 +46,12 @@ nodes = [
     {"data": {"id": "two", "label": "Node 2"}},
 ]
 
-
 edges = [{"data": {"source": "one", "target": "two", "label": "Node 1 to 2"}}]
 
 app.layout = html.Div(
-    [
+    id="cytoscape-hopr-channels-container",
+    style=styles["container"],
+    children=[
         # html.H1('HOPR Channels Visualization'),
         cyto.Cytoscape(
             id="cytoscape-hopr-channels",
