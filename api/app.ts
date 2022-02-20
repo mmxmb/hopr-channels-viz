@@ -42,7 +42,7 @@ class HoprNode {
   publicKey: string;
   outgoingChannels: HoprChannel[]
   importanceScore: BigNumber
-  stake: BigNumber
+  stake: BigNumber = new BigNumber(1)
 }
 
 type HoprNodes = Record<string, HoprNode>;
@@ -206,6 +206,19 @@ const processHoprEvents = () => {
               channel.source = source;
               channel.balance = new BigNumber(args.amount);
               channelsBySrcDst[srcDest] = channel;
+
+              if (nodesByAccount[dest] === undefined) {
+                let node = new HoprNode();
+                node.account = dest;
+                nodesByAccount[dest] = node;
+              }
+
+              if (nodesByAccount[source] === undefined) {
+                let node = new HoprNode();
+                node.account = source;
+                nodesByAccount[source] = node;
+              }
+
             }
             break;
           case HoprEvent.ChannelUpdated:
@@ -224,6 +237,19 @@ const processHoprEvents = () => {
               channel.source = source;
               channel.balance = new BigNumber(args.newState[0]);
               channelsBySrcDst[srcDest] = channel;
+
+              if (nodesByAccount[dest] === undefined) {
+                let node = new HoprNode();
+                node.account = dest;
+                nodesByAccount[dest] = node;
+              }
+
+              if (nodesByAccount[source] === undefined) {
+                let node = new HoprNode();
+                node.account = source;
+                nodesByAccount[source] = node;
+              }
+
             }
             break;
           case HoprEvent.ChannelClosureFinalized:
