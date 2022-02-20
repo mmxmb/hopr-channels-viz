@@ -22,8 +22,8 @@ stylesheet = [
         "style": {
             "curve-style": "bezier",
             "target-arrow-shape": "chevron",
-            "target-arrow-color": "black",
-            "arrow-scale": 1,
+            "target-arrow-color": "purple",
+            "arrow-scale": 1.5,
             "width": 1,
         },
     },
@@ -74,6 +74,12 @@ styles = {
         "display": "flex",
         "flex-direction": "column",
     },
+    "title": {
+        "display": "flex",
+        "flex-direction": "row",
+        "padding": "0px 20px 0px 20px",
+        "justify-content": "space-around",
+    },
 }
 
 
@@ -103,9 +109,18 @@ app.layout = html.Div(
     id="cytoscape-hopr-channels-container",
     style=styles["container"],
     children=[
-        html.H1(
-            "HOPR Channels Visualization",
-            style=styles["h1"],
+        html.Div(
+            style=styles["title"],
+            children=[
+                html.H1(
+                    "HOPR Channels Visualization",
+                    style=styles["h1"],
+                ),
+                html.H3(
+                    id="blockheight" "",
+                    style=styles["h1"],
+                ),
+            ],
         ),
         html.Div(
             style=styles["slider"],
@@ -117,7 +132,7 @@ app.layout = html.Div(
                     marks=None,
                     value=20607201,
                     id="blockheight-slider",
-                    tooltip={"placement": "bottom", "always_visible": True},
+                    tooltip={"placement": "bottom", "always_visible": False},
                     updatemode="drag",
                 ),
             ],
@@ -133,6 +148,11 @@ app.layout = html.Div(
             maxZoom=2,
         ),
         html.Pre(id="cytoscape-hopr-details", style=styles["pre"]),
+        dcc.Link(
+            "HoprChannels contract",
+            href="https://blockscout.com/xdai/mainnet/address/0xD2F008718EEdD7aF7E9a466F5D68bb77D03B8F7A/transactions",
+            style=styles["h1"],
+        ),
     ],
 )
 
@@ -147,20 +167,25 @@ def display_tap_details(tap_node_data, tap_edge_data):
     if ctx.triggered:
         tap_event = ctx.triggered[0]["prop_id"].split(".")[1]
         if tap_event == "tapEdgeData":
-            return json.dumps(tap_edge_data, indent=2)
+            return " ".join(
+                [f"{k}: {v}" for k, v in tap_edge_data.items() if k != "id"]
+            )
+            # return json.dumps(tap_edge_data, indent=2)
         if tap_event == "tapNodeData":
-            return json.dumps(tap_node_data, indent=2)
+            return " ".join([f"{k}: {v}" for k, v in tap_node_data.items()])
+            # return json.dumps(tap_node_data, indent=2)
     return ""
 
 
 @app.callback(
     Output("cytoscape-hopr-channels", "elements"),
+    Output("blockheight", "children"),
     Input("blockheight-slider", "value"),
     State("cytoscape-hopr-channels", "elements"),
 )
 def update_output(blockheight, elements):
     connected_nodes, edges = get_graph_elements(blockheight)
-    return connected_nodes + edges
+    return connected_nodes + edges, f"Block height: {blockheight}"
 
 
 if __name__ == "__main__":
