@@ -58,6 +58,7 @@ type HoprNetworkHistory = Record<string, HoprNetwork>
 let networkHistory: HoprNetworkHistory = {}
 
 const calculateStake = (outgoingChannels) => {
+  // placeholder for unissued token count
   let stake: BigNumber = new BigNumber(1);
   for (let idx in outgoingChannels) {
     stake = stake.plus(outgoingChannels[idx].balance)
@@ -95,6 +96,7 @@ const createNetwork = (currentNodes, currentChannels) => {
 
   let outgoingChannels: Record<string, HoprChannel[]> = {}
 
+  // deep copy the current channel but also maintain a outgoingChannels map
   for (let key in currentChannels) {
     channels[key] = copyChannel(currentChannels[key]);
     let sourceAccount = key.split(':')[0];
@@ -113,7 +115,7 @@ const createNetwork = (currentNodes, currentChannels) => {
     }
   }
 
-  // for each node, calculate weight
+  // for each node, calculate importance score
   for (let key in nodes) {
     let totalWeight: BigNumber = new BigNumber(0);
     let node = nodes[key];
@@ -154,9 +156,10 @@ const processHoprEvents = () => {
 
   for (let idx in sortedBlocks) {
     var block = sortedBlocks[idx];
-    let sortedTransactions = data.blocks[block]
-    for (let tx in sortedTransactions) {
-      let logIndices = sortedTransactions[tx];
+    let sortedTransactions = Object.keys(data.blocks[block]).sort((key1, key2) => (key1.localeCompare(key2)))
+    for (let txIdx in sortedTransactions) {
+      var transaction = sortedTransactions[txIdx]
+      let logIndices = data.blocks[block][transaction];
       for (let logIdx in logIndices) {
         let message = logIndices[logIdx];
         let args = message.args;
@@ -196,6 +199,13 @@ const processHoprEvents = () => {
               channel.balance = new BigNumber(args.amount);
             } else {
               //console.error("channel " + srcDest + " not previously seen");
+              //console.log("channel discovered in funded" + srcDest);
+              numChannelsOpened++;
+              let channel = new HoprChannel();
+              channel.dest = dest;
+              channel.source = source;
+              channel.balance = new BigNumber(args.amount);
+              channelsBySrcDst[srcDest] = channel;
             }
             break;
           case HoprEvent.ChannelUpdated:
@@ -207,6 +217,13 @@ const processHoprEvents = () => {
               channel.balance = new BigNumber(args.newState[0]);
             } else {
               //console.error("channel " + srcDest + " not previously seen");
+              //console.log("channel discovered" + srcDest);
+              numChannelsOpened++;
+              let channel = new HoprChannel();
+              channel.dest = dest;
+              channel.source = source;
+              channel.balance = new BigNumber(args.newState[0]);
+              channelsBySrcDst[srcDest] = channel;
             }
             break;
           case HoprEvent.ChannelClosureFinalized:
@@ -214,7 +231,7 @@ const processHoprEvents = () => {
             var dest = args.destination.toLowerCase();
             var srcDest = source + ":" + dest;
             if (srcDest in channelsBySrcDst) {
-              console.log("channel closed" + srcDest);
+              // console.log("channel closed" + srcDest);
               numChannelsClosed++;
               delete channelsBySrcDst[srcDest];
             } else {
