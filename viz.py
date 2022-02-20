@@ -68,15 +68,15 @@ def edge_weight_range(edges):
     return 0, 0
 
 
-def node_importance_range(nodes):
-    importances = []
+def node_stake_range(nodes):
+    stakes = []
     for n in nodes:
         if "stake" in n["data"]:
             importance = int(float(n["data"]["stake"]))
             if importance > 0:
-                importances.append(importance)
-    if importances:
-        return min(importances), max(importances)
+                stakes.append(importance)
+    if stakes:
+        return min(stakes), max(stakes)
     return 0, 0
 
 
@@ -92,6 +92,18 @@ def get_connected_nodes(nodes, edges):
     for addr in connected_node_addresses:
         connected_nodes.append(nodes_by_id[addr])
     return connected_nodes
+
+
+def max_importance_node(nodes):
+    max_importance, current_max_node = 0, None
+    for node in nodes:
+        if (
+            "importance" in node["data"]
+            and float(node["data"]["importance"]) > max_importance
+        ):
+            max_importance = float(node["data"]["importance"])
+            current_max_node = node
+    return current_max_node
 
 
 def graph_elements(blockheight):
@@ -216,18 +228,16 @@ def edge_weight_styles(edges, n):
 def node_appearance_styles(nodes):
     styles = []
     colors = ["#0516b1", "#1c299e" "#3443cf", "#081373"]
-    min_importance, max_importance = node_importance_range(nodes)
-    importance_classes = [
-        min_importance + ((max_importance - min_importance) / (len(colors) - 1)) * i
+    min_stake, max_stake = node_stake_range(nodes)
+    stake_classes = [
+        min_stake + ((max_stake - min_stake) / (len(colors) - 1)) * i
         for i in range(len(colors))
     ]
     default_size = 20
-    for size_multiplier, (importance, color) in enumerate(
-        zip(importance_classes, colors), 1
-    ):
+    for size_multiplier, (stake, color) in enumerate(zip(stake_classes, colors), 1):
         styles.append(
             {
-                "selector": f"[stake > {importance}]",
+                "selector": f"[stake > {stake}]",
                 "style": {
                     "background-color": color,
                     "width": default_size + (15 * size_multiplier),
@@ -264,10 +274,24 @@ def update_output(blockheight, elements, stylesheet):
             },
         },
     ]
+    max_node = max_importance_node(connected_nodes)
+    if max_node:
+        max_node["classes"] = "max-importance"
+        stylesheet.append(
+            {
+                "selector": ".max-importance",
+                "style": {
+                    "border-color": "red",
+                    "border-width": 3,
+                    "border-style": "solid",
+                },
+            }
+        )
+
     stylesheet.extend(edge_weight_styles(edges, 5))
     stylesheet.extend(node_appearance_styles(connected_nodes))
     return connected_nodes + edges, stylesheet, f"Block height: {blockheight}"
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server(debug=False)
