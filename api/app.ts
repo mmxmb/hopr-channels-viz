@@ -67,46 +67,46 @@ const calculateStake = (outgoingChannels) => {
 
 const copyChannel = (oldChannel) => {
   let newChannel = new HoprChannel();
-  newChannel.balance = oldChannel.balance;
+  newChannel.balance = new BigNumber(oldChannel.balance);
   newChannel.dest = oldChannel.dest;
   newChannel.source = oldChannel.source;
-  newChannel.weight = oldChannel.weight;
+  newChannel.weight = new BigNumber(oldChannel.weight)
   return newChannel;
 }
 
 const copyNode = (oldNode) => {
   let newNode = new HoprNode()
   newNode.account = oldNode.account;
-  newNode.importanceScore = oldNode.importanceScore;
+  newNode.importanceScore = new BigNumber(oldNode.importanceScore);
   newNode.outgoingChannels = [];
   for (let idx in oldNode.outgoingChannels) {
     newNode.outgoingChannels.push(copyChannel(oldNode.outgoingChannels[idx]));
   }
   newNode.publicKey = oldNode.publicKey;
-  newNode.stake = oldNode.stake;
+  newNode.stake = new BigNumber(oldNode.stake);
 
   return newNode;
 }
 
-const createNetwork = (nodesByAccount, channelsBySrcDst) => {
+const createNetwork = (currentNodes, currentChannels) => {
   let network = new HoprNetwork();
   let nodes: HoprNodes = {};
   let channels: HoprChannels = {};
 
   let outgoingChannels: Record<string, HoprChannel[]> = {}
 
-  for (let key in channelsBySrcDst) {
-    channels[key] = copyChannel(channelsBySrcDst[key]);
+  for (let key in currentChannels) {
+    channels[key] = copyChannel(currentChannels[key]);
     let sourceAccount = key.split(':')[0];
     if (outgoingChannels[sourceAccount] === undefined) {
       outgoingChannels[sourceAccount] = [];
     }
-    outgoingChannels[sourceAccount].push(channelsBySrcDst[key])
+    outgoingChannels[sourceAccount].push(channels[key])
   }
 
   // update outgoingChannels and calculate stake
-  for (let key in nodesByAccount) {
-    nodes[key] = copyNode(nodesByAccount[key]);
+  for (let key in currentNodes) {
+    nodes[key] = copyNode(currentNodes[key]);
     if (key in outgoingChannels) {
       nodes[key].outgoingChannels = outgoingChannels[key];
       nodes[key].stake = calculateStake(outgoingChannels[key]);
@@ -120,21 +120,21 @@ const createNetwork = (nodesByAccount, channelsBySrcDst) => {
     for (let idx in node.outgoingChannels) {
       let channel = node.outgoingChannels[idx];
       let otherNode = nodes[channel.dest];
-      let weight = new BigNumber(otherNode.stake).div(node.stake).multipliedBy(channel.balance);
+      let stakeRatio = otherNode.stake.div(node.stake)
+      let weight = stakeRatio.multipliedBy(channel.balance);
       // console.log("weight " + weight);
       let sqrtWeight = weight.sqrt();
       totalWeight = totalWeight.plus(sqrtWeight);
       // update channel with weight
       let channelKey = channel.source + ":" + channel.dest;
       if (!sqrtWeight.isNaN()) {
-        channels[channelKey].weight = sqrtWeight;
+        channels[channelKey].weight = new BigNumber(sqrtWeight);
       }
     }
 
     let importanceScore = totalWeight.multipliedBy(node.stake);
     if (!importanceScore.isNaN()) {
-      console.log("importanceScore " + importanceScore);
-      nodes[key].importanceScore = importanceScore;
+      nodes[key].importanceScore = new BigNumber(importanceScore);
     }
   }
 
@@ -154,7 +154,6 @@ const processHoprEvents = () => {
 
   for (let idx in sortedBlocks) {
     var block = sortedBlocks[idx];
-    console.log("block number: " + block);
     let sortedTransactions = data.blocks[block]
     for (let tx in sortedTransactions) {
       let logIndices = sortedTransactions[tx];
@@ -165,7 +164,7 @@ const processHoprEvents = () => {
           case HoprEvent.Announcment:
             let account = args.account.toLowerCase();
             if (account in nodesByAccount) {
-              console.log(account + " already announced to the network");
+              //console.log(account + " already announced to the network");
             } else {
               let node = new HoprNode();
               node.account = account;
@@ -178,7 +177,7 @@ const processHoprEvents = () => {
             var dest = args.destination.toLowerCase();
             var srcDest = source + ":" + dest;
             if (srcDest in channelsBySrcDst) {
-              console.log("(" + source + "," + dest + ") already exists");
+              // console.log("(" + source + "," + dest + ") already exists");
             } else {
               console.log("channel opened" + srcDest);
               numChannelsOpened++;
@@ -196,7 +195,7 @@ const processHoprEvents = () => {
               let channel = channelsBySrcDst[srcDest];
               channel.balance = new BigNumber(args.amount);
             } else {
-              console.error("channel " + srcDest + " not previously seen");
+              //console.error("channel " + srcDest + " not previously seen");
             }
             break;
           case HoprEvent.ChannelUpdated:
@@ -207,7 +206,7 @@ const processHoprEvents = () => {
               let channel = channelsBySrcDst[srcDest];
               channel.balance = new BigNumber(args.newState[0]);
             } else {
-              console.error("channel " + srcDest + " not previously seen");
+              //console.error("channel " + srcDest + " not previously seen");
             }
             break;
           case HoprEvent.ChannelClosureFinalized:
@@ -219,7 +218,7 @@ const processHoprEvents = () => {
               numChannelsClosed++;
               delete channelsBySrcDst[srcDest];
             } else {
-              console.log("(" + source + "," + dest + ") does not exist");
+              //console.log("(" + source + "," + dest + ") does not exist");
             }
             break;
           default:
@@ -228,7 +227,7 @@ const processHoprEvents = () => {
         }
       }
     }
-    networkHistory[block] = createNetwork(nodesByAccount, channelsBySrcDst)
+    networkHistory[block] = createNetwork(nodesByAccount, channelsBySrcDst);
   }
 
   console.log("channelsOpened/Closed: " + numChannelsOpened + "/" + numChannelsClosed);
@@ -239,24 +238,37 @@ const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
   let nodes = [];
   let edges = [];
   for (let id in nodesByAccount) {
-    nodes.push({
+    let data = {
       'data': {
         'id': id,
-        'label': id.substring(0, 10),
-        'importance': nodesByAccount[id].importanceScore,
-        'stake': nodesByAccount[id].stake
+        'label': id.substring(0, 10)
       }
-    })
+    }
+    if (!nodesByAccount[id].importanceScore.isNaN()) {
+      data['data']['importance'] = nodesByAccount[id].importanceScore
+    }
+    if (!nodesByAccount[id].stake.isNaN()) {
+      data['data']['stake'] = nodesByAccount[id].stake
+    }
+
+    nodes.push(data)
   }
   for (let id in channelsBySrcDst) {
-    edges.push({
+    let data = {
       'data': {
         'source': channelsBySrcDst[id].source,
         'target': channelsBySrcDst[id].dest,
-        'weight': channelsBySrcDst[id].weight,
-        'balance': channelsBySrcDst[id].balance,
       }
-    })
+    }
+
+    if (!channelsBySrcDst[id].weight.isNaN()) {
+      data['data']['weight'] = channelsBySrcDst[id].weight
+    }
+
+    if (!channelsBySrcDst[id].balance.isNaN()) {
+      data['data']['balance'] = channelsBySrcDst[id].balance
+    }
+    edges.push(data)
   }
 
   return { 'nodes': nodes, 'edges': edges }
@@ -278,7 +290,7 @@ const getHoprNetwork = (request: Request, response: Response, next: NextFunction
         }
         prevHeight = sortedBlocks[idx];
       }
-      network = networkHistory[prevHeight]
+      network = networkHistory[prevHeight];
     }
   }
 
