@@ -63,7 +63,7 @@ const createNetwork = (nodesByAccount, channelsBySrcDst) => {
   }
 
   for (let key in channelsBySrcDst) {
-    nodes[key] = channelsBySrcDst[key];
+    channels[key] = channelsBySrcDst[key];
   }
 
   network.nodes = nodes;
