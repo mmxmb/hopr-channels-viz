@@ -1,8 +1,14 @@
-# Overview
+# HOPR Network Visualizer
+
+[ETHDenver2022 hackathon submission](https://hackerlink.io/buidl/2104)
+
+![Visualizer screenshot](assets/hopr-network-viz.png)
+
+## Overview
 
 > "The HOPR protocol relies on payment channels for the incentive layer of HOPR mixnet. Users need to see the topology of payment channels to make smart decisions to which other nodes they should open payment channels to. Being able to make smart decisions allows node operators to connect their node to other highly connected (and important) nodes and thereby relay a larger amount of packets - in order to increase their earnings for relaying packets."
 
-# Features
+## Features
 
 - HOPR Network Visualizer is an interactive dashboard that shows HOPR network topology as a directed graph.
 
@@ -10,7 +16,7 @@
 
 - A slider at the top can be used to see the snapshot of the network topology at any point in time (indexed by block height).
 
-# Tech stack
+## Tech stack
 
 Event data gathering: web3.py with QuickNetwork Gnosis Chain node.
 
@@ -18,9 +24,9 @@ Graph datastructure construction and caching: TypeScript Express API.
 
 Visualization: Dash Cytoscape.
 
-# How to run
+## How to run
 
-## Event data gathering
+### Event data gathering
 
 To scan [HoprContract](https://blockscout.com/xdai/mainnet/address/0xD2F008718EEdD7aF7E9a466F5D68bb77D03B8F7A/transactions) for relevant events:
 
@@ -33,9 +39,9 @@ python event_scanner.py $HTTP_PROVIDER
 
 Where `$HTTP_PROVIDER` is Gnosis Chain HTTP RPC. It took about 50k RPC calls and a few hours to scan 1 month worth of events.
 
-## Visualization
+### Visualization
 
-### Terminal 1
+#### Terminal 1
 
 
 Using node v17.5.0 and npm 8.4.1:
@@ -54,7 +60,7 @@ Example endpont:
 http://127.0.0.1:3000/network?format=cytoscape&blockHeight=20637852
 ```
 
-### Terminal 2
+#### Terminal 2
 
 Requires `pipenv`:
 
