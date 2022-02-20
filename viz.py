@@ -10,8 +10,7 @@ cyto.load_extra_layouts()
 
 
 app = dash.Dash(__name__)
-
-style = {"width": "100%", "height": "90vh"}
+app.title = "HOPR Channels Viz"
 
 stylesheet = [
     {
@@ -25,6 +24,7 @@ stylesheet = [
             "target-arrow-shape": "triangle",
             "target-arrow-color": "red",
             "arrow-scale": 2,
+            "width": 1,
         },
     },
 ]
@@ -33,22 +33,34 @@ stylesheet = [
 layout = {
     "name": "klay",
     "klay": {
-        "nodePlacement": "LINEAR_SEGMENTS",
+        "nodePlacement": "BRANDES_KOEPF",
         "nodeLayering": "LONGEST_PATH",
         "spacing": 20,
-        "thoroughness": 5,
+        "thoroughness": 3,
     },
+    "animate": "true",
+    "animationDuration": 200,
 }
 
 styles = {
+    "h1": {"text-align": "center"},
     "pre": {
-        "width": "100%",
         "height": "10vh",
         "border": "thin lightgrey solid",
         "background-color": "#fffea5",  # hopr yellow
         "overflowX": "scroll",
     },
-    "container": {"background-color": "#f8f8ff"},
+    "cytoscape": {"width": "100%", "height": "90vh"},
+    "container": {
+        "background-color": "#f8f8ff",
+        "position": "absolute",
+        "top": "0",
+        "right": "0",
+        "bottom": "0",
+        "left": "0",
+        "display": "flex",
+        "flex-direction": "column",
+    },
 }
 
 
@@ -78,23 +90,30 @@ app.layout = html.Div(
     id="cytoscape-hopr-channels-container",
     style=styles["container"],
     children=[
-        # html.H1('HOPR Channels Visualization'),
+        html.H1(
+            "HOPR Channels Visualization",
+            style=styles["h1"],
+        ),
         dcc.Slider(
             20307201,
             20637852,
-            1000,
+            1,
             marks=None,
             value=20607201,
             id="blockheight-slider",
             tooltip={"placement": "bottom", "always_visible": True},
             className="slider",
+            updatemode="drag",
         ),
         cyto.Cytoscape(
             id="cytoscape-hopr-channels",
             layout=layout,
-            style=style,
+            style=styles["cytoscape"],
             stylesheet=stylesheet,
             elements=[],
+            minZoom=0.25,
+            zoom=1,
+            maxZoom=2,
         ),
         html.Pre(id="cytoscape-hopr-details", style=styles["pre"]),
     ],

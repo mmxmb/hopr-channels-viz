@@ -1,0 +1,8 @@
+@font-face {
+    font-family: 'SourceCodePro'; 
+    src: url('SourceCodePro-VariableFont_wght.ttf');
+}
+
+body {
+    font-family: "SourceCodePro";
+}
