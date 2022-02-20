@@ -5,7 +5,6 @@ const app = express();
 const port = 3000;
 
 app.listen(port, () => {
-  processHoprEvents();
   console.log(`Timezones by location application is running on port ${port}.`);
 });
 
@@ -23,6 +22,16 @@ class HoprChannel {
   source: string
   // todo change type to Account
   dest: string
+
+  balance: number
+  commitment: number
+  // uint256 balance;
+  // bytes32 commitment;
+  // uint256 ticketEpoch;
+  // uint256 ticketIndex;
+  // ChannelStatus status;
+  // uint256 channelEpoch;
+  // uint32 closureTime;
 }
 
 class HoprNode {
@@ -35,10 +44,10 @@ type HoprNodes = Record<string, HoprNode>;
 
 type HoprChannels = Record<string, HoprChannel>
 
-let nodesByAccount: HoprNodes = {};
-let channelsBySrcDst: HoprChannels = {};
+const processHoprEvents = (blockHeight) => {
+  let nodesByAccount: HoprNodes = {};
+  let channelsBySrcDst: HoprChannels = {};
 
-const processHoprEvents = () => {
   let sortedBlocks = Object.keys(data.blocks).sort((key1, key2) => (key1.localeCompare(key2)))
 
   let numChannelsOpened = 0
@@ -46,6 +55,10 @@ const processHoprEvents = () => {
 
   for (let idx in sortedBlocks) {
     var block = sortedBlocks[idx];
+    if (blockHeight !== undefined && block > blockHeight) {
+      console.log("stopping at block " + blockHeight);
+      break
+    }
     let sortedTransactions = data.blocks[block]
     for (let tx in sortedTransactions) {
       let logIndices = sortedTransactions[tx];
@@ -79,6 +92,17 @@ const processHoprEvents = () => {
               channelsBySrcDst[srcDest] = channel;
             }
             break;
+          case HoprEvent.ChannelFunded:
+          case HoprEvent.ChannelUpdated:
+            var source = args.source.toLowerCase();
+            var dest = args.destination.toLowerCase();
+            var srcDest = source + ":" + dest;
+            if (srcDest in channelsBySrcDst) {
+              console.log(args);
+            } else {
+              console.error("channel " + srcDest + " not previously seen");
+            }
+            break;
           case HoprEvent.ChannelClosureFinalized:
             var source = args.source.toLowerCase();
             var dest = args.destination.toLowerCase();
@@ -100,6 +124,7 @@ const processHoprEvents = () => {
   }
 
   console.log("channelsOpened/Closed: " + numChannelsOpened + "/" + numChannelsClosed);
+  return { nodes: nodesByAccount, channels: channelsBySrcDst }
 }
 
 const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
@@ -126,12 +151,18 @@ const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
 }
 
 const getHoprNetwork = (request: Request, response: Response, next: NextFunction) => {
+  var data = processHoprEvents(undefined)
+  if (request.query['blockHeight'] !== undefined) {
+    data = processHoprEvents(request.query['blockHeight']);
+  }
+
   if (request.query['format'] === 'cytoscape') {
-    response.status(200).json(convertToCytoscape(nodesByAccount, channelsBySrcDst));
+    response.status(200).json(convertToCytoscape(data.nodes, data.channels));
   } else {
-    response.status(200).json({ nodes: nodesByAccount, channels: channelsBySrcDst })
+    response.status(200).json({ nodes: data.nodes, channels: data.channels })
   }
 
 };
 app.get('/network', getHoprNetwork);
 
+// 20570425
