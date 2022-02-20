@@ -96,7 +96,7 @@ const createNetwork = (nodesByAccount, channelsBySrcDst) => {
   let outgoingChannels: Record<string, HoprChannel[]> = {}
 
   for (let key in channelsBySrcDst) {
-    channels[key] = channelsBySrcDst[key];
+    channels[key] = copyChannel(channelsBySrcDst[key]);
     let sourceAccount = key.split(':')[0];
     if (outgoingChannels[sourceAccount] === undefined) {
       outgoingChannels[sourceAccount] = [];
@@ -106,7 +106,7 @@ const createNetwork = (nodesByAccount, channelsBySrcDst) => {
 
   // update outgoingChannels and calculate stake
   for (let key in nodesByAccount) {
-    nodes[key] = nodesByAccount[key];
+    nodes[key] = copyNode(nodesByAccount[key]);
     if (key in outgoingChannels) {
       nodes[key].outgoingChannels = outgoingChannels[key];
       nodes[key].stake = calculateStake(outgoingChannels[key]);
@@ -126,14 +126,15 @@ const createNetwork = (nodesByAccount, channelsBySrcDst) => {
       totalWeight = totalWeight.plus(sqrtWeight);
       // update channel with weight
       let channelKey = channel.source + ":" + channel.dest;
-      // console.log("channelKey " + channelKey);
-      // channels[channelKey].weight = weight
+      if (!sqrtWeight.isNaN()) {
+        channels[channelKey].weight = sqrtWeight;
+      }
     }
 
     let importanceScore = totalWeight.multipliedBy(node.stake);
     if (!importanceScore.isNaN()) {
       console.log("importanceScore " + importanceScore);
-      node.importanceScore = importanceScore;
+      nodes[key].importanceScore = importanceScore;
     }
   }
 
@@ -241,7 +242,9 @@ const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
     nodes.push({
       'data': {
         'id': id,
-        'label': id.substring(0, 10)
+        'label': id.substring(0, 10),
+        'importance': nodesByAccount[id].importanceScore,
+        'stake': nodesByAccount[id].stake
       }
     })
   }
@@ -249,7 +252,9 @@ const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
     edges.push({
       'data': {
         'source': channelsBySrcDst[id].source,
-        'target': channelsBySrcDst[id].dest
+        'target': channelsBySrcDst[id].dest,
+        'weight': channelsBySrcDst[id].weight,
+        'balance': channelsBySrcDst[id].balance,
       }
     })
   }
