@@ -22,7 +22,7 @@ stylesheet = [
         "style": {
             "curve-style": "bezier",
             "target-arrow-shape": "chevron",
-            "target-arrow-color": "red",
+            "target-arrow-color": "black",
             "arrow-scale": 1,
             "width": 1,
         },
