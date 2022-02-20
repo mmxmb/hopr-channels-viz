@@ -17,16 +17,26 @@ stylesheet = [
     {
         "selector": "node",
         "style": {"background-color": "#BFD7B5", "label": "data(label)"},
-    }
+    },
+    {
+        "selector": "edge",
+        "style": {
+            "curve-style": "bezier",
+            "target-arrow-shape": "triangle",
+            "target-arrow-color": "red",
+            "arrow-scale": 2,
+        },
+    },
 ]
 
 # https://github.com/cytoscape/cytoscape.js-klay
 layout = {
     "name": "klay",
     "klay": {
-        "nodePlacement": "BRANDES_KOEPF",
+        "nodePlacement": "LINEAR_SEGMENTS",
         "nodeLayering": "LONGEST_PATH",
-        "spacing": 100,
+        "spacing": 20,
+        "thoroughness": 5,
     },
 }
 
@@ -38,24 +48,25 @@ styles = {
         "background-color": "#fffea5",  # hopr yellow
         "overflowX": "scroll",
     },
-    "container": {
-        "background-color": "#f8f8ff"
-    }
+    "container": {"background-color": "#f8f8ff"},
 }
 
+
 def get_graph_elements(blockheight):
-    resp = requests.get(f'http://127.0.0.1:3000/network?format=cytoscape&blockHeight={blockheight}')
+    resp = requests.get(
+        f"http://127.0.0.1:3000/network?format=cytoscape&blockHeight={blockheight}"
+    )
     if not resp.ok:
         print(f"resp not OK: {resp.status_code} {resp.text}")
         return [], []
 
     elements = resp.json()
-    nodes, edges = elements['nodes'], elements['edges']
-    nodes_by_id = {node['data']['id']: node for node in nodes}
+    nodes, edges = elements["nodes"], elements["edges"]
+    nodes_by_id = {node["data"]["id"]: node for node in nodes}
     connected_node_addresses = set()
     for edge in edges:
-        connected_node_addresses.add(edge['data']['source'])
-        connected_node_addresses.add(edge['data']['target'])
+        connected_node_addresses.add(edge["data"]["source"])
+        connected_node_addresses.add(edge["data"]["target"])
 
     connected_nodes = []
     for addr in connected_node_addresses:
@@ -63,18 +74,20 @@ def get_graph_elements(blockheight):
     return connected_nodes, edges
 
 
-
-
 app.layout = html.Div(
     id="cytoscape-hopr-channels-container",
     style=styles["container"],
     children=[
         # html.H1('HOPR Channels Visualization'),
-        dcc.Slider(20307201, 20637852, 1000,
+        dcc.Slider(
+            20307201,
+            20637852,
+            1000,
             marks=None,
-            value=20307201,
-            id='blockheight-slider',
-            tooltip={"placement": "bottom", "always_visible": True}
+            value=20607201,
+            id="blockheight-slider",
+            tooltip={"placement": "bottom", "always_visible": True},
+            className="slider",
         ),
         cyto.Cytoscape(
             id="cytoscape-hopr-channels",
@@ -84,34 +97,34 @@ app.layout = html.Div(
             elements=[],
         ),
         html.Pre(id="cytoscape-hopr-details", style=styles["pre"]),
-    ]
+    ],
 )
 
 
 @app.callback(
     Output("cytoscape-hopr-details", "children"),
     Input("cytoscape-hopr-channels", "tapNodeData"),
-    Input('cytoscape-hopr-channels', 'tapEdgeData')
+    Input("cytoscape-hopr-channels", "tapEdgeData"),
 )
 def display_tap_details(tap_node_data, tap_edge_data):
     ctx = dash.callback_context
     if ctx.triggered:
-        tap_event = ctx.triggered[0]['prop_id'].split('.')[1]
-        if tap_event == 'tapEdgeData':
+        tap_event = ctx.triggered[0]["prop_id"].split(".")[1]
+        if tap_event == "tapEdgeData":
             return json.dumps(tap_edge_data, indent=2)
-        if tap_event == 'tapNodeData':
+        if tap_event == "tapNodeData":
             return json.dumps(tap_node_data, indent=2)
-    return ''
+    return ""
+
 
 @app.callback(
-    Output('cytoscape-hopr-channels', 'elements'),
-    Input('blockheight-slider', 'value'),
-    State('cytoscape-hopr-channels', 'elements')
+    Output("cytoscape-hopr-channels", "elements"),
+    Input("blockheight-slider", "value"),
+    State("cytoscape-hopr-channels", "elements"),
 )
 def update_output(blockheight, elements):
     connected_nodes, edges = get_graph_elements(blockheight)
     return connected_nodes + edges
-
 
 
 if __name__ == "__main__":
