@@ -1,0 +1,11 @@
+ background: rgb(0,15,255);
+background: radial-gradient(circle, rgba(0,15,255,1) 1%, rgba(81,110,255,1) 65%); 
+
+ background: rgb(0,10,159);
+background: radial-gradient(circle, rgba(0,10,159,1) 12%, rgba(81,110,255,1) 97%); 
+
+ background: rgb(0,7,98);
+background: radial-gradient(circle, rgba(0,7,98,1) 52%, rgba(81,110,255,1) 97%); 
+
+ background: rgb(0,0,0);
+background: radial-gradient(circle, rgba(0,0,0,1) 62%, rgba(81,110,255,1) 97%); 

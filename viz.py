@@ -21,10 +21,22 @@ stylesheet = [
         "selector": "edge",
         "style": {
             "curve-style": "bezier",
-            "target-arrow-shape": "triangle",
+            "target-arrow-shape": "chevron",
             "target-arrow-color": "red",
-            "arrow-scale": 2,
+            "arrow-scale": 1,
             "width": 1,
+        },
+    },
+    {
+        "selector": "[weight > 10]",
+        "style": {
+            "width": 10,
+        },
+    },
+    {
+        "selector": "[importance > 10]",
+        "style": {
+            "width": 10,
         },
     },
 ]
@@ -50,6 +62,7 @@ styles = {
         "background-color": "#fffea5",  # hopr yellow
         "overflowX": "scroll",
     },
+    "slider": {"border-bottom": "thin lightgrey solid"},
     "cytoscape": {"width": "100%", "height": "90vh"},
     "container": {
         "background-color": "#f8f8ff",
@@ -94,16 +107,20 @@ app.layout = html.Div(
             "HOPR Channels Visualization",
             style=styles["h1"],
         ),
-        dcc.Slider(
-            20307201,
-            20637852,
-            1,
-            marks=None,
-            value=20607201,
-            id="blockheight-slider",
-            tooltip={"placement": "bottom", "always_visible": True},
-            className="slider",
-            updatemode="drag",
+        html.Div(
+            style=styles["slider"],
+            children=[
+                dcc.Slider(
+                    20307201,
+                    20637852,
+                    1,
+                    marks=None,
+                    value=20607201,
+                    id="blockheight-slider",
+                    tooltip={"placement": "bottom", "always_visible": True},
+                    updatemode="drag",
+                ),
+            ],
         ),
         cyto.Cytoscape(
             id="cytoscape-hopr-channels",
