@@ -82,6 +82,7 @@ const processHoprEvents = () => {
 
   for (let idx in sortedBlocks) {
     var block = sortedBlocks[idx];
+    console.log("block number: " + block);
     let sortedTransactions = data.blocks[block]
     for (let tx in sortedTransactions) {
       let logIndices = sortedTransactions[tx];
@@ -161,7 +162,7 @@ const processHoprEvents = () => {
   }
 
   console.log("channelsOpened/Closed: " + numChannelsOpened + "/" + numChannelsClosed);
-  console.log("number of items in history: " + networkHistory.size);
+  console.log("number of items in history: " + Object.keys(networkHistory).length);
 }
 
 const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
@@ -194,7 +195,16 @@ const getHoprNetwork = (request: Request, response: Response, next: NextFunction
     if (blockHeight in networkHistory) {
       network = networkHistory[blockHeight]
     } else {
-      network = new HoprNetwork()
+      // find the last block with events in it
+      let prevHeight = '0'
+      let sortedBlocks = Object.keys(networkHistory).sort((key1, key2) => (key1.localeCompare(key2)))
+      for (let idx in sortedBlocks) {
+        if (blockHeight < sortedBlocks[idx]) {
+          break;
+        }
+        prevHeight = sortedBlocks[idx];
+      }
+      network = networkHistory[prevHeight]
     }
   }
 
