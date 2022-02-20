@@ -11,8 +11,8 @@ cyto.load_extra_layouts()
 app = dash.Dash(__name__)
 app.title = "HOPR Channels Viz"
 
-HOPR_CHANNELS_CREATION_BLOCKHEIGHT = 20307201
-HOPR_CHANNELS_LAST_INDEXED_BLOCKHEIGHT = 20637852
+HOPR_CHANNELS_CREATION_BLOCKHEIGHT = 0
+HOPR_CHANNELS_LAST_INDEXED_BLOCKHEIGHT = 2691
 
 # https://github.com/cytoscape/cytoscape.js-klay
 layout = {
@@ -133,7 +133,7 @@ app.layout = html.Div(
                     HOPR_CHANNELS_LAST_INDEXED_BLOCKHEIGHT,
                     1,
                     marks=None,
-                    value=20607201,  # random block height that looks alright
+                    value=2691,  # random block height that looks alright
                     id="blockheight-slider",
                     tooltip={"placement": "bottom", "always_visible": False},
                     updatemode="drag",
@@ -206,7 +206,7 @@ def edge_weight_styles(edges, n):
             {
                 "selector": f"[weight > {weight}]",
                 "style": {
-                    "width": width + ((width - 1) * 2),
+                    "width": width,
                 },
             },
         )
