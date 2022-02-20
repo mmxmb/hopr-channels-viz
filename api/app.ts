@@ -5,6 +5,7 @@ const app = express();
 const port = 3000;
 
 app.listen(port, () => {
+  processHoprEvents();
   console.log(`Timezones by location application is running on port ${port}.`);
 });
 
@@ -23,8 +24,8 @@ class HoprChannel {
   // todo change type to Account
   dest: string
 
-  balance: number
-  commitment: number
+  balance: bigint
+  commitment: bigint
   // uint256 balance;
   // bytes32 commitment;
   // uint256 ticketEpoch;
@@ -41,24 +42,46 @@ class HoprNode {
 }
 
 type HoprNodes = Record<string, HoprNode>;
-
 type HoprChannels = Record<string, HoprChannel>
 
-const processHoprEvents = (blockHeight) => {
-  let nodesByAccount: HoprNodes = {};
-  let channelsBySrcDst: HoprChannels = {};
+class HoprNetwork {
+  nodes: HoprNodes
+  channels: HoprChannels
+}
 
+type HoprNetworkHistory = Record<string, HoprNetwork>
+
+let networkHistory: HoprNetworkHistory = {}
+
+const createNetwork = (nodesByAccount, channelsBySrcDst) => {
+  let network = new HoprNetwork();
+  let nodes: HoprNodes = {};
+  let channels: HoprChannels = {};
+
+  for (let key in nodesByAccount) {
+    nodes[key] = nodesByAccount[key];
+  }
+
+  for (let key in channelsBySrcDst) {
+    nodes[key] = channelsBySrcDst[key];
+  }
+
+  network.nodes = nodes;
+  network.channels = channels;
+  return network
+}
+
+const processHoprEvents = () => {
   let sortedBlocks = Object.keys(data.blocks).sort((key1, key2) => (key1.localeCompare(key2)))
 
   let numChannelsOpened = 0
   let numChannelsClosed = 0
 
+  let nodesByAccount: HoprNodes = {};
+  let channelsBySrcDst: HoprChannels = {};
+
   for (let idx in sortedBlocks) {
     var block = sortedBlocks[idx];
-    if (blockHeight !== undefined && block > blockHeight) {
-      console.log("stopping at block " + blockHeight);
-      break
-    }
     let sortedTransactions = data.blocks[block]
     for (let tx in sortedTransactions) {
       let logIndices = sortedTransactions[tx];
@@ -93,12 +116,25 @@ const processHoprEvents = (blockHeight) => {
             }
             break;
           case HoprEvent.ChannelFunded:
+            var source = args.source.toLowerCase();
+            var dest = args.destination.toLowerCase();
+            var srcDest = source + ":" + dest;
+            if (srcDest in channelsBySrcDst) {
+              let channel = channelsBySrcDst[srcDest];
+              // channel.balance += args.amount;
+            } else {
+              console.error("channel " + srcDest + " not previously seen");
+            }
+            break;
           case HoprEvent.ChannelUpdated:
             var source = args.source.toLowerCase();
             var dest = args.destination.toLowerCase();
             var srcDest = source + ":" + dest;
             if (srcDest in channelsBySrcDst) {
-              console.log(args);
+              let channel = channelsBySrcDst[srcDest];
+              console.log("channel balance" + JSON.stringify(args.newState));
+              // channel.balance = args.newState.balance;
+              // channel.commitment = args.newState.commitment;
             } else {
               console.error("channel " + srcDest + " not previously seen");
             }
@@ -121,10 +157,11 @@ const processHoprEvents = (blockHeight) => {
         }
       }
     }
+    networkHistory[block] = createNetwork(nodesByAccount, channelsBySrcDst)
   }
 
   console.log("channelsOpened/Closed: " + numChannelsOpened + "/" + numChannelsClosed);
-  return { nodes: nodesByAccount, channels: channelsBySrcDst }
+  console.log("number of items in history: " + networkHistory.size);
 }
 
 const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
@@ -151,15 +188,20 @@ const convertToCytoscape = (nodesByAccount, channelsBySrcDst) => {
 }
 
 const getHoprNetwork = (request: Request, response: Response, next: NextFunction) => {
-  var data = processHoprEvents(undefined)
+  let network: HoprNetwork = networkHistory['20637852']
   if (request.query['blockHeight'] !== undefined) {
-    data = processHoprEvents(request.query['blockHeight']);
+    let blockHeight = request.query['blockHeight'] + ""
+    if (blockHeight in networkHistory) {
+      network = networkHistory[blockHeight]
+    } else {
+      network = new HoprNetwork()
+    }
   }
 
   if (request.query['format'] === 'cytoscape') {
-    response.status(200).json(convertToCytoscape(data.nodes, data.channels));
+    response.status(200).json(convertToCytoscape(network.nodes, network.channels));
   } else {
-    response.status(200).json({ nodes: data.nodes, channels: data.channels })
+    response.status(200).json({ nodes: network.nodes, channels: network.channels })
   }
 
 };
