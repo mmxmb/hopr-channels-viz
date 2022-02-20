@@ -1,3 +1,4 @@
+import { BigNumber } from 'bignumber.js';
 import express, { NextFunction, Request, Response } from 'express';
 import * as data from './hopr_channels_events.json';
 
@@ -24,8 +25,8 @@ class HoprChannel {
   // todo change type to Account
   dest: string
 
-  balance: bigint
-  commitment: bigint
+  balance: BigNumber
+  weight: BigNumber
   // uint256 balance;
   // bytes32 commitment;
   // uint256 ticketEpoch;
@@ -39,6 +40,9 @@ class HoprNode {
   // todo change type to Account
   account: string;
   publicKey: string;
+  outgoingChannels: HoprChannel[]
+  importanceScore: BigNumber
+  stake: BigNumber
 }
 
 type HoprNodes = Record<string, HoprNode>;
@@ -53,17 +57,84 @@ type HoprNetworkHistory = Record<string, HoprNetwork>
 
 let networkHistory: HoprNetworkHistory = {}
 
+const calculateStake = (outgoingChannels) => {
+  let stake: BigNumber = new BigNumber(1);
+  for (let idx in outgoingChannels) {
+    stake = stake.plus(outgoingChannels[idx].balance)
+  }
+  return stake
+}
+
+const copyChannel = (oldChannel) => {
+  let newChannel = new HoprChannel();
+  newChannel.balance = oldChannel.balance;
+  newChannel.dest = oldChannel.dest;
+  newChannel.source = oldChannel.source;
+  newChannel.weight = oldChannel.weight;
+  return newChannel;
+}
+
+const copyNode = (oldNode) => {
+  let newNode = new HoprNode()
+  newNode.account = oldNode.account;
+  newNode.importanceScore = oldNode.importanceScore;
+  newNode.outgoingChannels = [];
+  for (let idx in oldNode.outgoingChannels) {
+    newNode.outgoingChannels.push(copyChannel(oldNode.outgoingChannels[idx]));
+  }
+  newNode.publicKey = oldNode.publicKey;
+  newNode.stake = oldNode.stake;
+
+  return newNode;
+}
+
 const createNetwork = (nodesByAccount, channelsBySrcDst) => {
   let network = new HoprNetwork();
   let nodes: HoprNodes = {};
   let channels: HoprChannels = {};
 
-  for (let key in nodesByAccount) {
-    nodes[key] = nodesByAccount[key];
-  }
+  let outgoingChannels: Record<string, HoprChannel[]> = {}
 
   for (let key in channelsBySrcDst) {
     channels[key] = channelsBySrcDst[key];
+    let sourceAccount = key.split(':')[0];
+    if (outgoingChannels[sourceAccount] === undefined) {
+      outgoingChannels[sourceAccount] = [];
+    }
+    outgoingChannels[sourceAccount].push(channelsBySrcDst[key])
+  }
+
+  // update outgoingChannels and calculate stake
+  for (let key in nodesByAccount) {
+    nodes[key] = nodesByAccount[key];
+    if (key in outgoingChannels) {
+      nodes[key].outgoingChannels = outgoingChannels[key];
+      nodes[key].stake = calculateStake(outgoingChannels[key]);
+    }
+  }
+
+  // for each node, calculate weight
+  for (let key in nodes) {
+    let totalWeight: BigNumber = new BigNumber(0);
+    let node = nodes[key];
+    for (let idx in node.outgoingChannels) {
+      let channel = node.outgoingChannels[idx];
+      let otherNode = nodes[channel.dest];
+      let weight = new BigNumber(otherNode.stake).div(node.stake).multipliedBy(channel.balance);
+      // console.log("weight " + weight);
+      let sqrtWeight = weight.sqrt();
+      totalWeight = totalWeight.plus(sqrtWeight);
+      // update channel with weight
+      let channelKey = channel.source + ":" + channel.dest;
+      // console.log("channelKey " + channelKey);
+      // channels[channelKey].weight = weight
+    }
+
+    let importanceScore = totalWeight.multipliedBy(node.stake);
+    if (!importanceScore.isNaN()) {
+      console.log("importanceScore " + importanceScore);
+      node.importanceScore = importanceScore;
+    }
   }
 
   network.nodes = nodes;
@@ -122,7 +193,7 @@ const processHoprEvents = () => {
             var srcDest = source + ":" + dest;
             if (srcDest in channelsBySrcDst) {
               let channel = channelsBySrcDst[srcDest];
-              // channel.balance += args.amount;
+              channel.balance = new BigNumber(args.amount);
             } else {
               console.error("channel " + srcDest + " not previously seen");
             }
@@ -133,9 +204,7 @@ const processHoprEvents = () => {
             var srcDest = source + ":" + dest;
             if (srcDest in channelsBySrcDst) {
               let channel = channelsBySrcDst[srcDest];
-              console.log("channel balance" + JSON.stringify(args.newState));
-              // channel.balance = args.newState.balance;
-              // channel.commitment = args.newState.commitment;
+              channel.balance = new BigNumber(args.newState[0]);
             } else {
               console.error("channel " + srcDest + " not previously seen");
             }
